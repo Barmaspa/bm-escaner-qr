@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+
+<html lang="es">
+
+<head>
+
+  <meta charset="UTF-8">
+
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>B&M Producciones - Escáner QR</title>
+
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+
+  <style>
+
+    body {
+
+      font-family: Arial, sans-serif;
+
+      background: #f3f4f6;
+
+      margin: 0;
+
+      padding: 20px;
+
+      text-align: center;
+
+    }
+
+    .panel {
+
+      max-width: 480px;
+
+      margin: 20px auto;
+
+      padding: 22px;
+
+      background: white;
+
+      border-radius: 14px;
+
+    }
+
+    button, input {
+
+      width: 100%;
+
+      box-sizing: border-box;
+
+      padding: 14px;
+
+      margin: 8px 0;
+
+      font-size: 16px;
+
+      border-radius: 8px;
+
+    }
+
+    button {
+
+      background: #166534;
+
+      color: white;
+
+      border: 0;
+
+      font-weight: bold;
+
+    }
+
+    input { border: 1px solid #bbb; }
+
+    #reader { width: 100%; margin: 15px auto; }
+
+    #mensaje { font-weight: bold; }
+
+  </style>
+
+</head>
+
+<body>
+
+  <div class="panel">
+
+    <h2>B&M PRODUCCIONES</h2>
+
+    <h3>LECTOR DE ENTRADAS QR</h3>
+
+    <div id="reader"></div>
+
+    <button onclick="iniciar()">ACTIVAR CÁMARA</button>
+
+    <button onclick="detener()">DETENER CÁMARA</button>
+
+    <p>También puedes ingresar el código manualmente:</p>
+
+    <input id="codigo" placeholder="Código QR o enlace de entrada">
+
+    <button onclick="enviarManual()">ENVIAR CÓDIGO</button>
+
+    <p id="mensaje">Esperando lectura...</p>
+
+  </div>
+
+<script>
+
+  let lector = null;
+
+  function extraerCodigo(valor) {
+
+    valor = String(valor || "").trim();
+
+    try {
+
+      const url = new URL(valor);
+
+      return url.searchParams.get("codigo") || valor;
+
+    } catch (e) {
+
+      return valor;
+
+    }
+
+  }
+
+  function enviarCodigo(valor) {
+
+    const codigo = extraerCodigo(valor);
+
+    if (!codigo) {
+
+      document.getElementById("mensaje").textContent =
+
+        "Código vacío.";
+
+      return;
+
+    }
+
+    document.getElementById("codigo").value = codigo;
+
+    document.getElementById("mensaje").textContent =
+
+      "QR leído. Enviando al panel de acceso...";
+
+    if (window.opener && !window.opener.closed) {
+
+      window.opener.postMessage({
+
+        type: "BM_QR_SCANNED",
+
+        code: codigo
+
+      }, "*");
+
+    } else {
+
+      document.getElementById("mensaje").textContent =
+
+        "QR leído. Debes abrir este escáner desde el panel de acceso.";
+
+    }
+
+  }
+
+  function enviarManual() {
+
+    enviarCodigo(document.getElementById("codigo").value);
+
+  }
+
+  async function iniciar() {
+
+    if (typeof Html5Qrcode === "undefined") {
+
+      document.getElementById("mensaje").textContent =
+
+        "No se pudo cargar el lector QR.";
+
+      return;
+
+    }
+
+    try {
+
+      lector = new Html5Qrcode("reader");
+
+      await lector.start(
+
+        { facingMode: "environment" },
+
+        { fps: 10, qrbox: { width: 250, height: 250 } },
+
+        texto => {
+
+          detener();
+
+          enviarCodigo(texto);
+
+        },
+
+        () => {}
+
+      );
+
+      document.getElementById("mensaje").textContent =
+
+        "Cámara activa. Enfoca el código QR.";
+
+    } catch (error) {
+
+      lector = null;
+
+      document.getElementById("mensaje").textContent =
+
+        "No se pudo activar la cámara: " + error;
+
+    }
+
+  }
+
+  function detener() {
+
+    if (lector) {
+
+      const actual = lector;
+
+      lector = null;
+
+      actual.stop().then(() => actual.clear()).catch(() => {});
+
+    }
+
+  }
+
+</script>
+
+</body>
+
+</html>
